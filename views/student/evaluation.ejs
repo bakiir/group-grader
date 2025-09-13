@@ -91,31 +91,42 @@
                                             <form method="POST" action="/student/evaluation" class="evaluation-form">
                                                 <input type="hidden" name="teamId" value="<%= team._id %>">
                                                 
-                                                <h6>Критерии оценивания:</h6>
+                                                <h6 class="mb-3">Критерии оценивания:</h6>
                                                 <% if (criteria && criteria.length > 0) { %>
-                                                    <% criteria.forEach(criterion => { %>
-                                                        <div class="mb-3">
-                                                            <label class="form-label">
-                                                                <%= criterion.name %>
-                                                                <small class="text-muted">(вес: <%= criterion.weight %>%, макс: <%= criterion.maxScore %> баллов)</small>
-                                                            </label>
-                                                            <input type="number" 
-                                                                   class="form-control" 
-                                                                   name="criteria[<%= criterion._id %>][criterionId]" 
-                                                                   value="<%= criterion._id %>" 
-                                                                   style="display: none;">
-                                                            <input type="number" 
-                                                                   class="form-control" 
-                                                                   name="criteria[<%= criterion._id %>][score]" 
-                                                                   min="0" 
-                                                                   max="<%= criterion.maxScore %>" 
-                                                                   step="0.1"
-                                                                   required>
-                                                            <% if (criterion.description) { %>
-                                                                <small class="form-text text-muted"><%= criterion.description %></small>
-                                                            <% } %>
-                                                        </div>
-                                                    <% }); %>
+                                                    <div class="row g-2">
+                                                        <% criteria.forEach(criterion => { %>
+                                                            <div class="col-md-6">
+                                                                <div class="card border-light">
+                                                                    <div class="card-body p-3">
+                                                                        <label class="form-label fw-bold mb-2">
+                                                                            <%= criterion.name %>
+                                                                        </label>
+                                                                        <div class="d-flex align-items-center">
+                                                                            <input type="number" 
+                                                                                   class="form-control form-control-sm me-2" 
+                                                                                   name="criteria[<%= criterion._id %>]" 
+                                                                                   min="0" 
+                                                                                   max="<%= criterion.maxScore %>" 
+                                                                                   step="0.1"
+                                                                                   placeholder="0"
+                                                                                   required>
+                                                                            <small class="text-muted">
+                                                                                /<%= criterion.maxScore %>
+                                                                            </small>
+                                                                        </div>
+                                                                        <small class="text-muted">
+                                                                            Вес: <%= criterion.weight %>% | 
+                                                                            <% if (criterion.description) { %>
+                                                                                <%= criterion.description %>
+                                                                            <% } else { %>
+                                                                                Максимум <%= criterion.maxScore %> баллов
+                                                                            <% } %>
+                                                                        </small>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        <% }); %>
+                                                    </div>
                                                 <% } else { %>
                                                     <div class="alert alert-warning">
                                                         <i class="fas fa-exclamation-triangle me-2"></i>
@@ -123,17 +134,8 @@
                                                     </div>
                                                 <% } %>
                                                 
-                                                <div class="mb-3">
-                                                    <label for="comments" class="form-label">Комментарии (необязательно)</label>
-                                                    <textarea class="form-control" 
-                                                              id="comments" 
-                                                              name="comments" 
-                                                              rows="3" 
-                                                              placeholder="Ваши комментарии к оценке..."></textarea>
-                                                </div>
-                                                
-                                                <div class="d-grid">
-                                                    <button type="submit" class="btn btn-primary">
+                                                <div class="d-grid mt-3">
+                                                    <button type="submit" class="btn btn-primary btn-lg">
                                                         <i class="fas fa-star me-2"></i>Отправить оценку
                                                     </button>
                                                 </div>
@@ -184,16 +186,22 @@
         // Валидация форм оценивания
         document.querySelectorAll('.evaluation-form').forEach(form => {
             form.addEventListener('submit', function(e) {
-                const scoreInputs = this.querySelectorAll('input[name*="[score]"]');
+                const scoreInputs = this.querySelectorAll('input[name*="criteria"]');
                 let hasValidScores = true;
+                let emptyFields = [];
                 
                 scoreInputs.forEach(input => {
                     const value = parseFloat(input.value);
                     const max = parseFloat(input.getAttribute('max'));
                     
-                    if (isNaN(value) || value < 0 || value > max) {
+                    if (isNaN(value) || value < 0) {
                         hasValidScores = false;
                         input.classList.add('is-invalid');
+                        emptyFields.push(input.closest('.card').querySelector('label').textContent);
+                    } else if (value > max) {
+                        hasValidScores = false;
+                        input.classList.add('is-invalid');
+                        alert(`Оценка для "${input.closest('.card').querySelector('label').textContent}" не может превышать ${max} баллов`);
                     } else {
                         input.classList.remove('is-invalid');
                     }
@@ -201,7 +209,9 @@
                 
                 if (!hasValidScores) {
                     e.preventDefault();
-                    alert('Пожалуйста, введите корректные оценки для всех критериев.');
+                    if (emptyFields.length > 0) {
+                        alert('Пожалуйста, заполните все поля оценок.');
+                    }
                 }
             });
         });

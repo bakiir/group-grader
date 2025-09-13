@@ -154,18 +154,21 @@ router.get("/evaluation", async (req, res) => {
 // Обработка отправки оценки
 router.post("/evaluation", [
   body("teamId").isMongoId(),
-  body("criteria").isArray({ min: 1 }),
-  body("criteria.*.criterionId").isMongoId(),
-  body("criteria.*.score").isInt({ min: 0, max: 100 }),
-  body("comments").optional().trim().isLength({ max: 1000 })
+  body("criteria").custom((value) => {
+    if (!value || Object.keys(value).length === 0) {
+      throw new Error("Необходимо оценить по всем критериям");
+    }
+    return true;
+  })
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log("Validation errors:", errors.array());
       return res.redirect("/student/evaluation?error=Некорректные данные");
     }
 
-    const { teamId, criteria, comments } = req.body;
+    const { teamId, criteria } = req.body;
     const userId = req.session.userId;
 
     // Проверка активного периода
@@ -198,28 +201,28 @@ router.post("/evaluation", [
       return res.redirect("/student/evaluation?error=Вы уже оценили эту команду");
     }
 
-    // Валидация критериев
-    const validCriteria = await Criterion.find({ 
-      _id: { $in: criteria.map(c => c.criterionId) },
-      isActive: true 
-    });
-
-    if (validCriteria.length !== criteria.length) {
-      return res.redirect("/student/evaluation?error=Некорректные критерии");
-    }
-
-    // Расчет общей оценки
+    // Обработка критериев из формы
+    const criteriaData = [];
     let totalScore = 0;
-    const criteriaData = criteria.map(c => {
-      const criterion = validCriteria.find(cr => cr._id.toString() === c.criterionId);
-      const score = parseInt(c.score);
-      totalScore += (score * criterion.weight / 100);
+    
+    // Получаем все активные критерии
+    const validCriteria = await Criterion.find({ isActive: true });
+    
+    for (const criterion of validCriteria) {
+      const criterionId = criterion._id.toString();
+      const score = parseInt(criteria[criterionId]);
       
-      return {
-        criterion: c.criterionId,
+      if (isNaN(score) || score < 0 || score > criterion.maxScore) {
+        return res.redirect("/student/evaluation?error=Некорректные оценки");
+      }
+      
+      criteriaData.push({
+        criterion: criterionId,
         score: score
-      };
-    });
+      });
+      
+      totalScore += (score * criterion.weight / 100);
+    }
 
     // Создание оценки
     const evaluation = new Evaluation({
@@ -228,7 +231,7 @@ router.post("/evaluation", [
       criteria: criteriaData,
       totalScore: Math.round(totalScore * 100) / 100, // Округление до 2 знаков
       period: activePeriod._id,
-      comments: comments || "",
+      comments: "",
       isSubmitted: true
     });
 

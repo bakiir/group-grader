@@ -6,6 +6,7 @@ const Team = require("../models/Team");
 const Criterion = require("../models/Criterion");
 const EvaluationPeriod = require("../models/EvaluationPeriod");
 const TeamHistory = require("../models/TeamHistory");
+const Evaluation = require("../models/Evaluation");
 const router = express.Router();
 
 // Главная страница админа
@@ -390,6 +391,162 @@ router.delete("/periods/:id", async (req, res) => {
   } catch (error) {
     console.error("Ошибка удаления периода:", error);
     res.status(500).json({ error: "Ошибка удаления периода" });
+  }
+});
+
+// Отчеты
+router.get("/reports", async (req, res) => {
+  try {
+    const periods = await EvaluationPeriod.find({})
+      .populate("groups", "name")
+      .sort({ createdAt: -1 });
+    
+    res.render("admin/reports", {
+      title: "Отчеты",
+      periods: periods,
+      error: null
+    });
+  } catch (error) {
+    console.error("Ошибка загрузки отчетов:", error);
+    res.render("admin/reports", {
+      title: "Отчеты",
+      periods: [],
+      error: "Ошибка загрузки отчетов"
+    });
+  }
+});
+
+// Детальный отчет по периоду
+router.get("/reports/period/:id", async (req, res) => {
+  try {
+    const period = await EvaluationPeriod.findById(req.params.id)
+      .populate("groups", "name");
+    
+    if (!period) {
+      return res.status(404).send("Период не найден");
+    }
+
+    // Получаем все команды из групп этого периода
+    const teams = await Team.find({ 
+      group: { $in: period.groups.map(g => g._id) },
+      isActive: true 
+    }).populate("group", "name").populate("members", "name");
+
+    // Получаем все оценки за этот период
+    const evaluations = await Evaluation.find({ period: period._id })
+      .populate("evaluator", "name")
+      .populate("evaluatedTeam", "name group")
+      .populate({
+        path: "criteria",
+        populate: {
+          path: "criterion",
+          model: "Criterion"
+        }
+      });
+
+    // Получаем все критерии
+    const criteria = await Criterion.find({});
+
+    // Рассчитываем среднюю оценку по каждому критерию
+    const criteriaAverages = {};
+    const criteriaCounts = {};
+
+    criteria.forEach(c => {
+      criteriaAverages[c._id] = 0;
+      criteriaCounts[c._id] = 0;
+    });
+
+    evaluations.forEach(evaluation => {
+      evaluation.criteria.forEach(grade => {
+        if (grade.criterion && criteriaAverages.hasOwnProperty(grade.criterion._id)) {
+          criteriaAverages[grade.criterion._id] += grade.score;
+          criteriaCounts[grade.criterion._id]++;
+        }
+      });
+    });
+
+    const criteriaStats = criteria.map(c => {
+      const totalScore = criteriaAverages[c._id];
+      const count = criteriaCounts[c._id];
+      const average = count > 0 ? (totalScore / count).toFixed(2) : 0;
+      return {
+        name: c.name,
+        average: average
+      };
+    });
+
+    // Группируем оценки по командам
+    const teamEvaluations = {};
+    evaluations.forEach(eval => {
+      const teamId = eval.evaluatedTeam._id.toString();
+      if (!teamEvaluations[teamId]) {
+        teamEvaluations[teamId] = {
+          team: eval.evaluatedTeam,
+          evaluations: []
+        };
+      }
+      teamEvaluations[teamId].evaluations.push(eval);
+    });
+
+    // Вычисляем статистику
+    const stats = {
+      totalTeams: teams.length,
+      totalEvaluations: evaluations.length,
+      averageScore: evaluations.length > 0 ? 
+        (evaluations.reduce((sum, eval) => sum + eval.totalScore, 0) / evaluations.length).toFixed(2) : 0,
+      completedTeams: Object.keys(teamEvaluations).length
+    };
+
+    res.render("admin/report-detail", {
+      title: `Отчет по периоду: ${period.name}`,
+      period: period,
+      teams: teams,
+      teamEvaluations: teamEvaluations,
+      stats: stats,
+      criteriaStats: criteriaStats,
+      error: null
+    });
+  } catch (error) {
+    console.error("Ошибка загрузки детального отчета:", error);
+    res.status(500).send("Ошибка загрузки отчета");
+  }
+});
+
+// Экспорт отчета в CSV
+router.get("/reports/period/:id/export", async (req, res) => {
+  try {
+    const period = await EvaluationPeriod.findById(req.params.id)
+      .populate("groups", "name");
+    
+    if (!period) {
+      return res.status(404).send("Период не найден");
+    }
+
+    // Получаем все оценки за этот период
+    const evaluations = await Evaluation.find({ period: period._id })
+      .populate("evaluator", "name")
+      .populate("evaluatedTeam", "name group")
+      .populate("evaluatedTeam.group", "name");
+
+    // Формируем CSV
+    let csv = "Оценивающий,Оцениваемая команда,Группа,Общая оценка,Дата оценки\n";
+    
+    evaluations.forEach(eval => {
+      const evaluatorName = eval.evaluator.name;
+      const teamName = eval.evaluatedTeam.name;
+      const groupName = eval.evaluatedTeam.group.name;
+      const score = eval.totalScore;
+      const date = new Date(eval.createdAt).toLocaleDateString('ru-RU');
+      
+      csv += `"${evaluatorName}","${teamName}","${groupName}",${score},"${date}"\n`;
+    });
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="report-${period.name}-${new Date().toISOString().split('T')[0]}.csv"`);
+    res.send(csv);
+  } catch (error) {
+    console.error("Ошибка экспорта отчета:", error);
+    res.status(500).send("Ошибка экспорта отчета");
   }
 });
 
