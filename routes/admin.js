@@ -19,7 +19,8 @@ router.get("/dashboard", async (req, res) => {
       title: "Панель администратора",
       groups: groups,
       activePeriods: activePeriods,
-      totalStudents: totalStudents
+      totalStudents: totalStudents,
+      error: null
     });
   } catch (error) {
     console.error("Ошибка загрузки дашборда:", error);
@@ -30,13 +31,15 @@ router.get("/dashboard", async (req, res) => {
   }
 });
 
+
 // Управление группами
 router.get("/groups", async (req, res) => {
   try {
     const groups = await Group.find({}).populate("createdBy", "name").sort({ createdAt: -1 });
     res.render("admin/groups", {
       title: "Управление группами",
-      groups: groups
+      groups: groups,
+      error: null
     });
   } catch (error) {
     console.error("Ошибка загрузки групп:", error);
@@ -97,7 +100,8 @@ router.get("/groups/:id/students", async (req, res) => {
     res.render("admin/group-students", {
       title: `Студенты группы ${group.name}`,
       group: group,
-      students: students
+      students: students,
+      error: null
     });
   } catch (error) {
     console.error("Ошибка загрузки студентов:", error);
@@ -120,7 +124,8 @@ router.get("/teams/:groupId", async (req, res) => {
     res.render("admin/teams", {
       title: `Команды группы ${group.name}`,
       group: group,
-      teams: teams
+      teams: teams,
+      error: null
     });
   } catch (error) {
     console.error("Ошибка загрузки команд:", error);
@@ -182,7 +187,8 @@ router.get("/criteria", async (req, res) => {
     const criteria = await Criterion.find({}).populate("createdBy", "name").sort({ createdAt: -1 });
     res.render("admin/criteria", {
       title: "Критерии оценивания",
-      criteria: criteria
+      criteria: criteria,
+      error: null
     });
   } catch (error) {
     console.error("Ошибка загрузки критериев:", error);

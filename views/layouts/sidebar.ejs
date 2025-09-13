@@ -1,0 +1,90 @@
+<nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+    <div class="position-sticky pt-3">
+        <% if (user) { %>
+            <div class="text-center mb-4">
+                <div class="mb-2">
+                    <i class="fas fa-user-circle fa-3x text-primary"></i>
+                </div>
+                <h6><%= user.name %></h6>
+                <small class="text-muted">
+                    <%= user.role === 'admin' ? 'Администратор' : 'Студент' %>
+                </small>
+            </div>
+            
+            <% if (user.role === 'admin') { %>
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link <%= req.path === '/admin/dashboard' ? 'active' : '' %>" href="/admin/dashboard">
+                            <i class="fas fa-tachometer-alt me-2"></i>
+                            Панель управления
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link <%= req.path.startsWith('/admin/groups') ? 'active' : '' %>" href="/admin/groups">
+                            <i class="fas fa-layer-group me-2"></i>
+                            Группы
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link <%= req.path.startsWith('/admin/teams') ? 'active' : '' %>" href="#">
+                            <i class="fas fa-users me-2"></i>
+                            Команды
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link <%= req.path.startsWith('/admin/criteria') ? 'active' : '' %>" href="/admin/criteria">
+                            <i class="fas fa-list-check me-2"></i>
+                            Критерии оценивания
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="fas fa-calendar me-2"></i>
+                            Периоды оценивания
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="fas fa-chart-bar me-2"></i>
+                            Отчеты
+                        </a>
+                    </li>
+                </ul>
+            <% } else { %>
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link <%= req.path === '/student/dashboard' ? 'active' : '' %>" href="/student/dashboard">
+                            <i class="fas fa-tachometer-alt me-2"></i>
+                            Личный кабинет
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link <%= req.path === '/student/team' ? 'active' : '' %>" href="/student/team">
+                            <i class="fas fa-users me-2"></i>
+                            Моя команда
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link <%= req.path === '/student/evaluation' ? 'active' : '' %>" href="/student/evaluation">
+                            <i class="fas fa-star me-2"></i>
+                            Оценивание команд
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link <%= req.path === '/student/history' ? 'active' : '' %>" href="/student/history">
+                            <i class="fas fa-history me-2"></i>
+                            История команд
+                        </a>
+                    </li>
+                </ul>
+            <% } %>
+        <% } else { %>
+            <div class="text-center">
+                <p class="text-muted">Войдите в систему для доступа к функциям</p>
+                <a href="/auth/login" class="btn btn-primary btn-sm">
+                    <i class="fas fa-sign-in-alt me-1"></i>Войти
+                </a>
+            </div>
+        <% } %>
+    </div>
+</nav>

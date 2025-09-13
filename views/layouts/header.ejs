@@ -1,0 +1,92 @@
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="/">
+            <i class="fas fa-graduation-cap me-2"></i>
+            Group Grader
+        </a>
+        
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto">
+                <% if (user) { %>
+                    <% if (user.role === 'admin') { %>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin/dashboard">
+                                <i class="fas fa-tachometer-alt me-1"></i>Панель администратора
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin/groups">
+                                <i class="fas fa-layer-group me-1"></i>Группы
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin/criteria">
+                                <i class="fas fa-list-check me-1"></i>Критерии
+                            </a>
+                        </li>
+                    <% } else { %>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/student/dashboard">
+                                <i class="fas fa-tachometer-alt me-1"></i>Личный кабинет
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/student/team">
+                                <i class="fas fa-users me-1"></i>Моя команда
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/student/evaluation">
+                                <i class="fas fa-star me-1"></i>Оценивание
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/student/history">
+                                <i class="fas fa-history me-1"></i>История
+                            </a>
+                        </li>
+                    <% } %>
+                <% } %>
+            </ul>
+            
+            <ul class="navbar-nav">
+                <% if (user) { %>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user me-1"></i>
+                            <%= user.name %>
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><span class="dropdown-item-text">
+                                <small class="text-muted">Роль: <%= user.role === 'admin' ? 'Администратор' : 'Студент' %></small>
+                            </span></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form method="POST" action="/auth/logout" class="d-inline">
+                                    <button type="submit" class="dropdown-item">
+                                        <i class="fas fa-sign-out-alt me-1"></i>Выйти
+                                    </button>
+                                </form>
+                            </li>
+                        </ul>
+                    </li>
+                <% } else { %>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/auth/login">
+                            <i class="fas fa-sign-in-alt me-1"></i>Войти
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/auth/register">
+                            <i class="fas fa-user-plus me-1"></i>Регистрация
+                        </a>
+                    </li>
+                <% } %>
+            </ul>
+        </div>
+    </div>
+</nav>

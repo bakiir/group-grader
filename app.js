@@ -10,10 +10,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // MongoDB connection
-mongoose.connect(process.env.MONGODB_URI || "mongodb://localhost:27017/group-grader", {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
+mongoose.connect(process.env.MONGODB_URI || "mongodb://localhost:27017/group-grader");
 
 // Middleware
 app.use(express.urlencoded({ extended: true }));
@@ -63,12 +60,18 @@ app.use((req, res, next) => {
     name: req.session.userName,
     role: req.session.role
   } : null;
+  res.locals.req = req; // Pass req to templates
   next();
+});
+
+// Test route
+app.get("/test", (req, res) => {
+  res.send("Server is working!");
 });
 
 // Routes
 app.get("/", (req, res) => {
-  if (req.session.userId) {
+  if (req.session.userId && req.session.role) {
     if (req.session.role === "admin") {
       res.redirect("/admin/dashboard");
     } else {

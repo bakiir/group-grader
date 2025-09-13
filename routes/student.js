@@ -51,7 +51,8 @@ router.get("/dashboard", async (req, res) => {
       user: user,
       activePeriod: activePeriod,
       teamsToEvaluate: teamsToEvaluate,
-      teamHistory: teamHistory
+      teamHistory: teamHistory,
+      error: null
     });
   } catch (error) {
     console.error("Ошибка загрузки дашборда студента:", error);
@@ -86,7 +87,8 @@ router.get("/team", async (req, res) => {
     res.render("student/team", {
       title: "Моя команда",
       user: user,
-      team: team
+      team: team,
+      error: null
     });
   } catch (error) {
     console.error("Ошибка загрузки команды:", error);
@@ -137,7 +139,8 @@ router.get("/evaluation", async (req, res) => {
       title: "Оценивание команд",
       activePeriod: activePeriod,
       teamsToEvaluate: availableTeams,
-      criteria: criteria
+      criteria: criteria,
+      error: null
     });
   } catch (error) {
     console.error("Ошибка загрузки страницы оценивания:", error);
@@ -247,7 +250,8 @@ router.get("/history", async (req, res) => {
     res.render("student/history", {
       title: "История команд",
       user: user,
-      teamHistory: teamHistory
+      teamHistory: teamHistory,
+      error: null
     });
   } catch (error) {
     console.error("Ошибка загрузки истории:", error);
