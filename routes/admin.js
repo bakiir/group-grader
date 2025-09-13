@@ -1,0 +1,233 @@
+const express = require("express");
+const { body, validationResult } = require("express-validator");
+const User = require("../models/User");
+const Group = require("../models/Group");
+const Team = require("../models/Team");
+const Criterion = require("../models/Criterion");
+const EvaluationPeriod = require("../models/EvaluationPeriod");
+const TeamHistory = require("../models/TeamHistory");
+const router = express.Router();
+
+// Главная страница админа
+router.get("/dashboard", async (req, res) => {
+  try {
+    const groups = await Group.find({ isActive: true }).populate("students");
+    const activePeriods = await EvaluationPeriod.find({ isActive: true });
+    const totalStudents = await User.countDocuments({ role: "student", isActive: true });
+    
+    res.render("admin/dashboard", {
+      title: "Панель администратора",
+      groups: groups,
+      activePeriods: activePeriods,
+      totalStudents: totalStudents
+    });
+  } catch (error) {
+    console.error("Ошибка загрузки дашборда:", error);
+    res.render("admin/dashboard", {
+      title: "Панель администратора",
+      error: "Ошибка загрузки данных"
+    });
+  }
+});
+
+// Управление группами
+router.get("/groups", async (req, res) => {
+  try {
+    const groups = await Group.find({}).populate("createdBy", "name").sort({ createdAt: -1 });
+    res.render("admin/groups", {
+      title: "Управление группами",
+      groups: groups
+    });
+  } catch (error) {
+    console.error("Ошибка загрузки групп:", error);
+    res.render("admin/groups", {
+      title: "Управление группами",
+      error: "Ошибка загрузки групп"
+    });
+  }
+});
+
+// Создание группы
+router.post("/groups", [
+  body("name").trim().isLength({ min: 2, max: 100 }),
+  body("description").optional().trim().isLength({ max: 500 }),
+  body("maxStudents").isInt({ min: 1, max: 100 })
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const groups = await Group.find({}).populate("createdBy", "name");
+      return res.render("admin/groups", {
+        title: "Управление группами",
+        groups: groups,
+        error: "Некорректные данные",
+        errors: errors.array()
+      });
+    }
+
+    const { name, description, maxStudents } = req.body;
+    
+    const group = new Group({
+      name,
+      description,
+      maxStudents: parseInt(maxStudents),
+      createdBy: req.session.userId
+    });
+
+    await group.save();
+    res.redirect("/admin/groups?success=Группа создана успешно");
+  } catch (error) {
+    console.error("Ошибка создания группы:", error);
+    res.redirect("/admin/groups?error=Ошибка создания группы");
+  }
+});
+
+// Студенты группы
+router.get("/groups/:id/students", async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id);
+    if (!group) {
+      return res.status(404).send("Группа не найдена");
+    }
+
+    const students = await User.find({ group: req.params.id, isActive: true })
+      .populate("currentTeam", "name")
+      .sort({ name: 1 });
+
+    res.render("admin/group-students", {
+      title: `Студенты группы ${group.name}`,
+      group: group,
+      students: students
+    });
+  } catch (error) {
+    console.error("Ошибка загрузки студентов:", error);
+    res.status(500).send("Ошибка загрузки студентов");
+  }
+});
+
+// Управление командами
+router.get("/teams/:groupId", async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.groupId);
+    if (!group) {
+      return res.status(404).send("Группа не найдена");
+    }
+
+    const teams = await Team.find({ group: req.params.groupId, isActive: true })
+      .populate("members", "name email")
+      .sort({ name: 1 });
+
+    res.render("admin/teams", {
+      title: `Команды группы ${group.name}`,
+      group: group,
+      teams: teams
+    });
+  } catch (error) {
+    console.error("Ошибка загрузки команд:", error);
+    res.status(500).send("Ошибка загрузки команд");
+  }
+});
+
+// Перераспределение команд
+router.post("/teams/:groupId/redistribute", async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.groupId);
+    if (!group) {
+      return res.status(404).send("Группа не найдена");
+    }
+
+    const students = await User.find({ group: req.params.groupId, isActive: true });
+    
+    if (students.length === 0) {
+      return res.redirect(`/admin/teams/${req.params.groupId}?error=В группе нет студентов`);
+    }
+
+    // Деактивация существующих команд
+    await Team.updateMany({ group: req.params.groupId }, { isActive: false });
+
+    // Создание новых команд
+    const teamSize = 5; // Размер команды
+    const shuffledStudents = students.sort(() => Math.random() - 0.5);
+    
+    for (let i = 0; i < shuffledStudents.length; i += teamSize) {
+      const teamStudents = shuffledStudents.slice(i, i + teamSize);
+      const teamNumber = Math.floor(i / teamSize) + 1;
+      
+      const team = new Team({
+        name: `Команда ${teamNumber}`,
+        group: req.params.groupId,
+        members: teamStudents.map(s => s._id),
+        createdBy: req.session.userId
+      });
+
+      await team.save();
+
+      // Обновление currentTeam у студентов
+      for (const student of teamStudents) {
+        student.currentTeam = team._id;
+        await student.save();
+      }
+    }
+
+    res.redirect(`/admin/teams/${req.params.groupId}?success=Команды перераспределены успешно`);
+  } catch (error) {
+    console.error("Ошибка перераспределения команд:", error);
+    res.redirect(`/admin/teams/${req.params.groupId}?error=Ошибка перераспределения команд`);
+  }
+});
+
+// Управление критериями
+router.get("/criteria", async (req, res) => {
+  try {
+    const criteria = await Criterion.find({}).populate("createdBy", "name").sort({ createdAt: -1 });
+    res.render("admin/criteria", {
+      title: "Критерии оценивания",
+      criteria: criteria
+    });
+  } catch (error) {
+    console.error("Ошибка загрузки критериев:", error);
+    res.render("admin/criteria", {
+      title: "Критерии оценивания",
+      error: "Ошибка загрузки критериев"
+    });
+  }
+});
+
+// Создание критерия
+router.post("/criteria", [
+  body("name").trim().isLength({ min: 2, max: 100 }),
+  body("description").optional().trim().isLength({ max: 500 }),
+  body("weight").isInt({ min: 1, max: 100 }),
+  body("maxScore").isInt({ min: 1, max: 100 })
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const criteria = await Criterion.find({});
+      return res.render("admin/criteria", {
+        title: "Критерии оценивания",
+        criteria: criteria,
+        error: "Некорректные данные",
+        errors: errors.array()
+      });
+    }
+
+    const { name, description, weight, maxScore } = req.body;
+    
+    const criterion = new Criterion({
+      name,
+      description,
+      weight: parseInt(weight),
+      maxScore: parseInt(maxScore),
+      createdBy: req.session.userId
+    });
+
+    await criterion.save();
+    res.redirect("/admin/criteria?success=Критерий создан успешно");
+  } catch (error) {
+    console.error("Ошибка создания критерия:", error);
+    res.redirect("/admin/criteria?error=Ошибка создания критерия");
+  }
+});
+
+module.exports = router;

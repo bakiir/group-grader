@@ -1,0 +1,4 @@
+remove-bom.js
+.idea
+.env
+node_modules
