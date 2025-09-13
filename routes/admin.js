@@ -236,4 +236,161 @@ router.post("/criteria", [
   }
 });
 
+// Управление периодами оценивания
+router.get("/periods", async (req, res) => {
+  try {
+    const periods = await EvaluationPeriod.find({})
+      .populate("createdBy", "name")
+      .populate("groups", "name")
+      .sort({ createdAt: -1 });
+    
+    const groups = await Group.find({ isActive: true });
+    
+    res.render("admin/periods", {
+      title: "Периоды оценивания",
+      periods: periods,
+      groups: groups,
+      error: null
+    });
+  } catch (error) {
+    console.error("Ошибка загрузки периодов:", error);
+    res.render("admin/periods", {
+      title: "Периоды оценивания",
+      periods: [],
+      groups: [],
+      error: "Ошибка загрузки периодов"
+    });
+  }
+});
+
+// Создание периода оценивания
+router.post("/periods", [
+  body("name").trim().isLength({ min: 2, max: 100 }),
+  body("description").optional().trim().isLength({ max: 500 }),
+  body("startDate").notEmpty().withMessage("Дата начала обязательна"),
+  body("endDate").notEmpty().withMessage("Дата окончания обязательна"),
+  body("groups").custom((value) => {
+    if (!value) {
+      throw new Error("Выберите хотя бы одну группу");
+    }
+    if (Array.isArray(value) && value.length === 0) {
+      throw new Error("Выберите хотя бы одну группу");
+    }
+    if (typeof value === 'string' && value.trim() === '') {
+      throw new Error("Выберите хотя бы одну группу");
+    }
+    return true;
+  })
+], async (req, res) => {
+  try {
+    // Отладочная информация
+    console.log("Request body:", req.body);
+    console.log("Groups:", req.body.groups);
+    console.log("Groups type:", typeof req.body.groups);
+    
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      console.log("Validation errors:", errors.array());
+      const periods = await EvaluationPeriod.find({}).populate("createdBy", "name").populate("groups", "name");
+      const groups = await Group.find({ isActive: true });
+      return res.render("admin/periods", {
+        title: "Периоды оценивания",
+        periods: periods,
+        groups: groups,
+        error: "Некорректные данные",
+        errors: errors.array()
+      });
+    }
+
+    const { name, description, startDate, endDate, groups } = req.body;
+    
+    // Обработка groups - может быть массивом или строкой
+    const groupsArray = Array.isArray(groups) ? groups : [groups];
+    
+    // Проверка, что дата окончания после даты начала
+    if (new Date(endDate) <= new Date(startDate)) {
+      const periods = await EvaluationPeriod.find({}).populate("createdBy", "name").populate("groups", "name");
+      const groupsList = await Group.find({ isActive: true });
+      return res.render("admin/periods", {
+        title: "Периоды оценивания",
+        periods: periods,
+        groups: groupsList,
+        error: "Дата окончания должна быть после даты начала"
+      });
+    }
+
+    const period = new EvaluationPeriod({
+      name,
+      description,
+      startDate: new Date(startDate),
+      endDate: new Date(endDate),
+      groups: groupsArray,
+      createdBy: req.session.userId
+    });
+
+    await period.save();
+    res.redirect("/admin/periods?success=Период оценивания создан успешно");
+  } catch (error) {
+    console.error("Ошибка создания периода:", error);
+    res.redirect("/admin/periods?error=Ошибка создания периода оценивания");
+  }
+});
+
+// Активация периода оценивания
+router.post("/periods/:id/activate", async (req, res) => {
+  try {
+    const period = await EvaluationPeriod.findById(req.params.id);
+    if (!period) {
+      return res.redirect("/admin/periods?error=Период не найден");
+    }
+
+    // Деактивируем все другие активные периоды
+    await EvaluationPeriod.updateMany({ isActive: true }, { isActive: false, status: "completed" });
+
+    // Активируем выбранный период
+    await period.activate();
+    
+    res.redirect("/admin/periods?success=Период оценивания активирован");
+  } catch (error) {
+    console.error("Ошибка активации периода:", error);
+    res.redirect("/admin/periods?error=Ошибка активации периода");
+  }
+});
+
+// Деактивация периода оценивания
+router.post("/periods/:id/deactivate", async (req, res) => {
+  try {
+    const period = await EvaluationPeriod.findById(req.params.id);
+    if (!period) {
+      return res.redirect("/admin/periods?error=Период не найден");
+    }
+
+    await period.deactivate();
+    res.redirect("/admin/periods?success=Период оценивания деактивирован");
+  } catch (error) {
+    console.error("Ошибка деактивации периода:", error);
+    res.redirect("/admin/periods?error=Ошибка деактивации периода");
+  }
+});
+
+// Удаление периода оценивания
+router.delete("/periods/:id", async (req, res) => {
+  try {
+    const period = await EvaluationPeriod.findById(req.params.id);
+    if (!period) {
+      return res.status(404).json({ error: "Период не найден" });
+    }
+
+    if (period.isActive) {
+      return res.status(400).json({ error: "Нельзя удалить активный период" });
+    }
+
+    await EvaluationPeriod.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Ошибка удаления периода:", error);
+    res.status(500).json({ error: "Ошибка удаления периода" });
+  }
+});
+
 module.exports = router;

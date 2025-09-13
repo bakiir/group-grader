@@ -38,7 +38,7 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#">
+                        <a class="nav-link <%= req.path.startsWith('/admin/periods') ? 'active' : '' %>" href="/admin/periods">
                             <i class="fas fa-calendar me-2"></i>
                             Периоды оценивания
                         </a>
