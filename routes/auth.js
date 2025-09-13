@@ -11,8 +11,109 @@ router.get("/login", (req, res) => {
   }
   res.render("auth/login", { 
     title: "Вход в систему",
-    error: req.query.error 
+    error: req.query.error,
+    message: req.query.message
   });
+});
+
+// General registration page
+router.get('/register', async (req, res) => {
+    try {
+        const groups = await Group.find({ isActive: true });
+        res.render('auth/register', {
+            title: 'Регистрация',
+            groups: groups,
+            error: req.query.error,
+            errors: []
+        });
+    } catch (error) {
+        console.error('Ошибка получения групп:', error);
+        res.render('auth/register', {
+            title: 'Регистрация',
+            groups: [],
+            error: 'Ошибка загрузки групп',
+            errors: []
+        });
+    }
+});
+
+// Handle general registration
+router.post('/register', [
+    body('name').trim().isLength({ min: 2, max: 50 }).withMessage('Имя должно содержать от 2 до 50 символов'),
+    body('email').isEmail().normalizeEmail().withMessage('Некорректный email'),
+    body('password').isLength({ min: 6 }).withMessage('Пароль должен содержать минимум 6 символов'),
+    body('group').isMongoId().withMessage('Некорректный ID группы')
+], async (req, res) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            const groups = await Group.find({ isActive: true });
+            return res.render('auth/register', {
+                title: 'Регистрация',
+                groups: groups,
+                error: 'Некорректные данные',
+                errors: errors.array()
+            });
+        }
+
+        const { name, email, password, group: groupId } = req.body;
+
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
+            const groups = await Group.find({ isActive: true });
+            return res.render('auth/register', {
+                title: 'Регистрация',
+                groups: groups,
+                error: 'Пользователь с таким email уже существует',
+                errors: []
+            });
+        }
+
+        const group = await Group.findById(groupId);
+        if (!group || !group.isActive) {
+            const groups = await Group.find({ isActive: true });
+            return res.render('auth/register', {
+                title: 'Регистрация',
+                groups: groups,
+                error: 'Группа не найдена или неактивна',
+                errors: []
+            });
+        }
+
+        if (group.currentStudents >= group.maxStudents) {
+            const groups = await Group.find({ isActive: true });
+            return res.render('auth/register', {
+                title: 'Регистрация',
+                groups: groups,
+                error: 'Группа заполнена',
+                errors: []
+            });
+        }
+
+        const user = new User({
+            name,
+            email,
+            password,
+            group: groupId,
+            role: 'student'
+        });
+
+        await user.save();
+
+        await group.updateStudentCount();
+
+        res.redirect('/auth/login?message=registration_successful');
+
+    } catch (error) {
+        console.error('Ошибка регистрации:', error);
+        const groups = await Group.find({ isActive: true });
+        res.render('auth/register', {
+            title: 'Регистрация',
+            groups: groups,
+            error: 'Произошла ошибка при регистрации',
+            errors: []
+        });
+    }
 });
 
 // Обработка входа
