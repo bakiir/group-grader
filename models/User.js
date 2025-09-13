@@ -23,8 +23,7 @@ const UserSchema = new mongoose.Schema({
   },
   group: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Group",
-    required: true
+    ref: "Group"
   },
   currentTeam: {
     type: mongoose.Schema.Types.ObjectId,
