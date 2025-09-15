@@ -1,5 +1,8 @@
 const bcrypt = require('bcryptjs');
 
+
+//This is the migration
+
 module.exports = {
   async up(db, client) {
     // Create a group for admins
