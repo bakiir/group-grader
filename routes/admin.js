@@ -110,6 +110,71 @@ router.get("/groups/:id/students", async (req, res) => {
   }
 });
 
+// Удаление группы
+router.delete("/groups/:id", async (req, res) => {
+  try {
+    const groupId = req.params.id;
+    const group = await Group.findById(groupId);
+
+    if (!group) {
+      return res.status(404).json({ error: "Группа не найдена" });
+    }
+
+    // Нельзя удалить группу, если в ней есть студенты
+    if (group.currentStudents > 0) {
+      return res.status(400).json({ error: "Нельзя удалить группу, в которой есть студенты. Сначала переместите или удалите студентов." });
+    }
+
+    // Удаление связанных команд
+    await Team.deleteMany({ group: groupId });
+
+    // Удаление самой группы
+    await Group.findByIdAndDelete(groupId);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Ошибка удаления группы:", error);
+    res.status(500).json({ error: "Ошибка удаления группы" });
+  }
+});
+
+// Обновление группы
+router.put("/groups/:id", [
+  body("name").trim().isLength({ min: 2, max: 100 }),
+  body("description").optional().trim().isLength({ max: 500 }),
+  body("maxStudents").isInt({ min: 1, max: 100 })
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ error: "Некорректные данные", errors: errors.array() });
+    }
+
+    const { name, description, maxStudents } = req.body;
+    const groupId = req.params.id;
+
+    const group = await Group.findById(groupId);
+    if (!group) {
+      return res.status(404).json({ error: "Группа не найдена" });
+    }
+
+    // Нельзя уменьшать максимальное количество студентов, если текущее количество больше нового значения
+    if (parseInt(maxStudents) < group.currentStudents) {
+      return res.status(400).json({ error: `Нельзя установить максимальное количество студентов меньше, чем текущее количество (${group.currentStudents})` });
+    }
+
+    group.name = name;
+    group.description = description;
+    group.maxStudents = parseInt(maxStudents);
+
+    await group.save();
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Ошибка обновления группы:", error);
+    res.status(500).json({ error: "Ошибка обновления группы" });
+  }
+});
+
 // Управление командами
 router.get("/teams/:groupId", async (req, res) => {
   try {
@@ -179,6 +244,34 @@ router.post("/teams/:groupId/redistribute", async (req, res) => {
   } catch (error) {
     console.error("Ошибка перераспределения команд:", error);
     res.redirect(`/admin/teams/${req.params.groupId}?error=Ошибка перераспределения команд`);
+  }
+});
+
+// Обновление команды
+router.put("/teams/:id", [
+  body("name").trim().isLength({ min: 2, max: 100 }),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ error: "Некорректные данные", errors: errors.array() });
+    }
+
+    const { name } = req.body;
+    const teamId = req.params.id;
+
+    const team = await Team.findById(teamId);
+    if (!team) {
+      return res.status(404).json({ error: "Команда не найдена" });
+    }
+
+    team.name = name;
+
+    await team.save();
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Ошибка обновления команды:", error);
+    res.status(500).json({ error: "Ошибка обновления команды" });
   }
 });
 

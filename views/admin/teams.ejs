@@ -48,7 +48,12 @@
                                 <div class="card shadow">
                                     <div class="card-header d-flex justify-content-between align-items-center">
                                         <h5 class="mb-0"><%= team.name %></h5>
-                                        <span class="badge bg-primary"><%= team.members.length %> участников</span>
+                                        <div>
+                                            <span class="badge bg-primary me-2"><%= team.members.length %> участников</span>
+                                            <button type="button" class="btn btn-sm btn-outline-warning" onclick="openEditTeamModal('<%= team._id %>', '<%= team.name %>')">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                        </div>
                                     </div>
                                     <div class="card-body">
                                         <h6>Участники:</h6>
@@ -83,6 +88,65 @@
         </div>
     </div>
 
+    <!-- Modal для редактирования команды -->
+    <div class="modal fade" id="editTeamModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Редактировать команду</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="editTeamForm">
+                    <div class="modal-body">
+                        <input type="hidden" id="editTeamId" name="teamId">
+                        <div class="mb-3">
+                            <label for="editTeamName" class="form-label">Название команды *</label>
+                            <input type="text" class="form-control" id="editTeamName" name="name" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn btn-primary">Сохранить изменения</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function openEditTeamModal(teamId, name) {
+            document.getElementById('editTeamId').value = teamId;
+            document.getElementById('editTeamName').value = name;
+            new bootstrap.Modal(document.getElementById('editTeamModal')).show();
+        }
+
+        document.getElementById('editTeamForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const teamId = document.getElementById('editTeamId').value;
+            const name = document.getElementById('editTeamName').value;
+
+            fetch(`/admin/teams/${teamId}`,
+            {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ name }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert('Ошибка обновления команды: ' + data.error);
+                }
+            })
+            .catch(err => {
+                console.error('Ошибка:', err);
+                alert('Произошла ошибка при обновлении команды.');
+            });
+        });
+    </script>
 </body>
 </html>
