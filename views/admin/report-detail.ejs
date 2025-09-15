@@ -172,90 +172,49 @@
                     <div class="col-12">
                         <div class="card shadow">
                             <div class="card-header">
-                                <h5 class="mb-0">Результаты по командам</h5>
+                                <h5 class="mb-0">Результаты по командам (Турнирная таблица)</h5>
                             </div>
                             <div class="card-body">
-                                <% if (Object.keys(teamEvaluations).length > 0) { %>
+                                <% if (teamReportData && teamReportData.length > 0) { %>
                                     <div class="table-responsive">
-                                        <table class="table table-hover">
-                                            <thead>
+                                        <table class="table table-hover table-bordered text-center">
+                                            <thead class="table-light">
                                                 <tr>
-                                                    <th>Команда</th>
-                                                    <th>Группа</th>
-                                                    <th>Количество оценок</th>
-                                                    <th>Средняя оценка</th>
-                                                    <th>Максимальная оценка</th>
-                                                    <th>Минимальная оценка</th>
-                                                    <th>Детали</th>
+                                                    <th scope="col">#</th>
+                                                    <th scope="col" class="text-start">Команда</th>
+                                                    <th scope="col">Группа</th>
+                                                    <% criteria.forEach(criterion => { %>
+                                                        <th scope="col"><%= criterion.name %></th>
+                                                    <% }); %>
+                                                    <th scope="col" class="bg-primary text-white">Общий средний балл</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                <% Object.values(teamEvaluations).forEach(teamData => { %>
-                                                    <% 
-                                                        const evaluations = teamData.evaluations;
-                                                        const scores = evaluations.map(e => e.totalScore);
-                                                        const averageScore = scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2) : 0;
-                                                        const maxScore = Math.max(...scores);
-                                                        const minScore = Math.min(...scores);
-                                                    %>
+                                                <% teamReportData.forEach((teamData, index) => { %>
                                                     <tr>
-                                                        <td>
-                                                            <strong><%= teamData.team.name %></strong>
-                                                        </td>
-                                                        <td>
-                                                            <span class="badge bg-info"><%= teamData.team.group.name %></span>
-                                                        </td>
-                                                        <td>
-                                                            <span class="badge bg-primary"><%= evaluations.length %></span>
-                                                        </td>
-                                                        <td>
-                                                            <strong><%= averageScore %></strong>
-                                                        </td>
-                                                        <td>
-                                                            <span class="text-success"><%= maxScore %></span>
-                                                        </td>
-                                                        <td>
-                                                            <span class="text-danger"><%= minScore %></span>
-                                                        </td>
-                                                        <td>
-                                                            <button class="btn btn-sm btn-outline-primary" 
-                                                                    data-bs-toggle="collapse" 
-                                                                    data-bs-target="#details-<%= teamData.team._id %>">
-                                                                <i class="fas fa-eye me-1"></i>Показать
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                                    <tr class="collapse" id="details-<%= teamData.team._id %>">
-                                                        <td colspan="7">
-                                                            <div class="card">
-                                                                <div class="card-body">
-                                                                    <h6>Детали оценок:</h6>
-                                                                    <div class="table-responsive">
-                                                                        <table class="table table-sm">
-                                                                            <thead>
-                                                                                <tr>
-                                                                                    <th>Оценивающий</th>
-                                                                                    <th>Оценка</th>
-                                                                                    <th>Дата</th>
-                                                                                </tr>
-                                                                            </thead>
-                                                                            <tbody>
-                                                                                <% evaluations.forEach(eval => { %>
-                                                                                    <tr>
-                                                                                        <td><%= eval.evaluator.name %></td>
-                                                                                        <td><strong><%= eval.totalScore %></strong></td>
-                                                                                        <td><%= new Date(eval.createdAt).toLocaleDateString('ru-RU') %></td>
-                                                                                    </tr>
-                                                                                <% }); %>
-                                                                            </tbody>
-                                                                        </table>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
+                                                        <th scope="row"><%= index + 1 %></th>
+                                                        <td class="text-start"><strong><%= teamData.teamName %></strong></td>
+                                                        <td><span class="badge bg-info"><%= teamData.groupName %></span></td>
+                                                        <% criteria.forEach(criterion => { %>
+                                                            <td>
+                                                                <%= teamData.averageScores[criterion._id.toString()].toFixed(2) %>
+                                                            </td>
+                                                        <% }); %>
+                                                        <td class="bg-light">
+                                                            <strong><%= teamData.overallAverage.toFixed(2) %></strong>
                                                         </td>
                                                     </tr>
                                                 <% }); %>
                                             </tbody>
+                                             <tfoot>
+                                                <tr class="table-light fw-bold">
+                                                    <td colspan="3" class="text-end">Средний балл по критерию:</td>
+                                                    <% criteriaStats.forEach(stat => { %>
+                                                        <td><%= stat.average %></td>
+                                                    <% }); %>
+                                                    <td></td>
+                                                </tr>
+                                            </tfoot>
                                         </table>
                                     </div>
                                 <% } else { %>
