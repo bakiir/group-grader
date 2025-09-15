@@ -26,9 +26,10 @@ router.get("/dashboard", async (req, res) => {
     // Получение команд для оценивания (исключая свою команду)
     let teamsToEvaluate = [];
     if (activePeriod && user.currentTeam) {
-      const allTeams = await Team.find({ 
-        group: { $ne: user.group },
-        isActive: true 
+      const allTeams = await Team.find({
+        group: user.group,
+        _id: { $ne: user.currentTeam },
+        isActive: true
       }).populate("group", "name").populate("members", "name");
 
       // Проверяем, какие команды студент уже оценил
@@ -117,7 +118,8 @@ router.get("/evaluation", async (req, res) => {
 
     // Получение команд для оценивания
     const teamsToEvaluate = await Team.find({ 
-      group: { $ne: user.group },
+      group: user.group,
+      _id: { $ne: user.currentTeam },
       isActive: true 
     }).populate("group", "name").populate("members", "name");
 
@@ -185,9 +187,9 @@ router.post("/evaluation", [
       return res.redirect("/student/evaluation?error=Вы не можете оценивать свою команду");
     }
 
-    // Проверка, что команда не из той же группы
-    if (user.group.toString() === team.group.toString()) {
-      return res.redirect("/student/evaluation?error=Вы не можете оценивать команды из своей группы");
+    // Проверка, что команда из той же группы
+    if (user.group.toString() !== team.group.toString()) {
+      return res.redirect("/student/evaluation?error=Вы можете оценивать только команды из своей группы");
     }
 
     // Проверка, что оценка еще не была отправлена
