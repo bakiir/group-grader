@@ -10,7 +10,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // MongoDB connection
-mongoose.connect(process.env.MONGODB_URI || "mongodb://localhost:27017/group-grader");
+mongoose.connect("mongodb+srv://root:789123ewak@cluster0.bwfin.mongodb.net/ethics?retryWrites=true&w=majority&appName=Cluster0");
 
 // Middleware
 app.use(express.urlencoded({ extended: true }));

@@ -66,10 +66,19 @@ module.exports = {
   },
 
   async down(db, client) {
-    // Delete users
+    // Find the admin user to get their ID
+    const adminUser = await db.collection('users').findOne({ email: 'admin@example.com' });
+    if (adminUser) {
+      const adminUserId = adminUser._id;
+
+      // Delete the groups created by the admin
+      await db.collection('groups').deleteMany({ createdBy: adminUserId });
+    }
+
+    // Delete the admin user
     await db.collection('users').deleteOne({ email: 'admin@example.com' });
 
-    // Delete groups
-    await db.collection('groups').deleteMany({ name: { $in: ['Admins', 'Group 1', 'Group 2'] } });
+    // Delete the Admins group
+    await db.collection('groups').deleteOne({ name: 'Admins' });
   }
 };
