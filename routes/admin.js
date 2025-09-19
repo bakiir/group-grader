@@ -522,6 +522,7 @@ router.get("/reports/period/:id", async (req, res) => {
     // Получаем все команды из групп этого периода
     const teams = await Team.find({ 
       group: { $in: period.groups.map(g => g._id) },
+      isActive: true
     }).populate("group", "name");
 
     // Получаем все оценки за этот период
@@ -537,98 +538,49 @@ router.get("/reports/period/:id", async (req, res) => {
     // Получаем все активные критерии
     const criteria = await Criterion.find({ isActive: true });
 
-    // Рассчитываем средние оценки для каждой команды
-    const teamReportData = teams.map(team => {
-      const teamEvaluations = evaluations.filter(e => e.evaluatedTeam.toString() === team._id.toString());
+    // Группируем отчеты по группам
+    const reportsByGroup = {};
+
+    for (const group of period.groups) {
+      const groupTeams = teams.filter(t => t.group._id.toString() === group._id.toString());
       
-      const criteriaScores = new Map();
-      const criteriaCounts = new Map();
+      const teamReportData = groupTeams.map(team => {
+        const teamEvaluations = evaluations.filter(e => e.evaluatedTeam.toString() === team._id.toString());
+        const totalScoreSum = teamEvaluations.reduce((sum, ev) => {
+          const evaluationScore = ev.criteria.reduce((critSum, crit) => critSum + crit.score, 0);
+          return sum + evaluationScore;
+        }, 0);
+        const overallAverage = teamEvaluations.length > 0 ? totalScoreSum / teamEvaluations.length : 0;
 
-      criteria.forEach(c => {
-        criteriaScores.set(c._id.toString(), 0);
-        criteriaCounts.set(c._id.toString(), 0);
+        return {
+          teamName: team.name,
+          teamId: team._id,
+          overallAverage: overallAverage
+        };
       });
 
-      teamEvaluations.forEach(evaluation => {
-        evaluation.criteria.forEach(grade => {
-          if (grade.criterion) {
-            const criterionId = grade.criterion._id.toString();
-            criteriaScores.set(criterionId, criteriaScores.get(criterionId) + grade.score);
-            criteriaCounts.set(criterionId, criteriaCounts.get(criterionId) + 1);
-          }
-        });
-      });
-
-      const averageScores = new Map();
-      let totalAverage = 0;
-
-      criteria.forEach(c => {
-        const criterionId = c._id.toString();
-        const totalScore = criteriaScores.get(criterionId);
-        const count = criteriaCounts.get(criterionId);
-        const average = count > 0 ? totalScore / count : 0;
-        averageScores.set(criterionId, average);
-        
-        totalAverage += average;
-      });
+      // Сортируем команды по общему среднему баллу
+      teamReportData.sort((a, b) => b.overallAverage - a.overallAverage);
       
-      const overallAverage = criteria.length > 0 ? totalAverage / criteria.length : 0;
+      reportsByGroup[group.name] = teamReportData;
+    }
 
-      return {
-        teamName: team.name,
-        teamId: team._id,
-        groupName: team.group.name,
-        averageScores: Object.fromEntries(averageScores.entries()),
-        overallAverage: overallAverage
-      };
-    });
-
-    // Сортируем команды по общему среднему баллу
-    teamReportData.sort((a, b) => b.overallAverage - a.overallAverage);
-
-    // Рассчитываем среднюю оценку по каждому критерию в целом
-    const overallCriteriaAverages = new Map();
-    const overallCriteriaCounts = new Map();
-    criteria.forEach(c => {
-      overallCriteriaAverages.set(c._id.toString(), 0);
-      overallCriteriaCounts.set(c._id.toString(), 0);
-    });
-
-    evaluations.forEach(evaluation => {
-      evaluation.criteria.forEach(grade => {
-        if (grade.criterion) {
-          const criterionId = grade.criterion._id.toString();
-          overallCriteriaAverages.set(criterionId, overallCriteriaAverages.get(criterionId) + grade.score);
-          overallCriteriaCounts.set(criterionId, overallCriteriaCounts.get(criterionId) + 1);
-        }
-      });
-    });
-
-    const criteriaStats = criteria.map(c => {
-      const criterionId = c._id.toString();
-      const totalScore = overallCriteriaAverages.get(criterionId);
-      const count = overallCriteriaCounts.get(criterionId);
-      const average = count > 0 ? totalScore / count : 0;
-      return {
-        name: c.name,
-        average: average.toFixed(2)
-      };
-    });
-    
     // Статистика
+    const allScoresSum = evaluations.reduce((sum, ev) => {
+        const evaluationScore = ev.criteria.reduce((critSum, crit) => critSum + crit.score, 0);
+        return sum + evaluationScore;
+    }, 0);
+
     const stats = {
       totalTeams: teams.length,
       totalEvaluations: evaluations.length,
-      averageScore: evaluations.length > 0 ?
-        (evaluations.reduce((sum, eval) => sum + eval.totalScore, 0) / evaluations.length).toFixed(2) : 0,
+      averageScore: evaluations.length > 0 ? (allScoresSum / evaluations.length).toFixed(2) : 0,
     };
 
     res.render("admin/report-detail", {
       title: `Отчет по периоду: ${period.name}`,
       period: period,
-      teamReportData: teamReportData,
-      criteria: criteria,
-      criteriaStats: criteriaStats,
+      reportsByGroup: reportsByGroup,
       stats: stats,
       error: null
     });

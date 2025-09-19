@@ -206,6 +206,7 @@ router.post("/evaluation", [
     // Обработка критериев из формы
     const criteriaData = [];
     let totalScore = 0;
+    let totalWeight = 0; // Keep track of total weight
     
     // Получаем все активные критерии
     const validCriteria = await Criterion.find({ isActive: true });
@@ -223,7 +224,14 @@ router.post("/evaluation", [
         score: score
       });
       
-      totalScore += (score * criterion.weight / 100);
+      totalScore += (score / criterion.maxScore) * criterion.weight;
+      totalWeight += criterion.weight; // Add weight to total
+    }
+
+    // Normalize the score
+    let normalizedScore = 0;
+    if (totalWeight > 0) {
+      normalizedScore = (totalScore / totalWeight) * 100;
     }
 
     // Создание оценки
@@ -231,7 +239,7 @@ router.post("/evaluation", [
       evaluator: userId,
       evaluatedTeam: teamId,
       criteria: criteriaData,
-      totalScore: Math.round(totalScore * 100) / 100, // Округление до 2 знаков
+      totalScore: Math.round(normalizedScore * 100) / 100, // Округление до 2 знаков
       period: activePeriod._id,
       comments: "",
       isSubmitted: true

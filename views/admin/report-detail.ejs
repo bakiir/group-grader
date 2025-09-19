@@ -113,119 +113,59 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="card text-white bg-warning">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between">
-                                    <div>
-                                        <h4 class="card-title">Оцененных команд</h4>
-                                        <h2><%= stats.completedTeams %></h2>
-                                    </div>
-                                    <div class="align-self-center">
-                                        <i class="fas fa-check-circle fa-2x"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Средние оценки по критериям -->
-                <div class="row mb-4">
-                    <div class="col-12">
-                        <div class="card shadow">
-                            <div class="card-header">
-                                <h5 class="mb-0">Средние оценки по критериям</h5>
-                            </div>
-                            <div class="card-body">
-                                <% if (criteriaStats && criteriaStats.length > 0) { %>
-                                    <div class="table-responsive">
-                                        <table class="table table-hover">
-                                            <thead>
-                                                <tr>
-                                                    <th>Критерий</th>
-                                                    <th>Средняя оценка</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <% criteriaStats.forEach(criterion => { %>
-                                                    <tr>
-                                                        <td><%= criterion.name %></td>
-                                                        <td><strong><%= criterion.average %></strong></td>
-                                                    </tr>
-                                                <% }); %>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                <% } else { %>
-                                    <div class="text-center py-4">
-                                        <p class="text-muted">Нет данных по критериям.</p>
-                                    </div>
-                                <% } %>
-                            </div>
-                        </div>
-                    </div>
+                    
                 </div>
 
                 <!-- Результаты по командам -->
                 <div class="row">
                     <div class="col-12">
-                        <div class="card shadow">
-                            <div class="card-header">
-                                <h5 class="mb-0">Результаты по командам (Турнирная таблица)</h5>
-                            </div>
-                            <div class="card-body">
-                                <% if (teamReportData && teamReportData.length > 0) { %>
-                                    <div class="table-responsive">
-                                        <table class="table table-hover table-bordered text-center">
-                                            <thead class="table-light">
-                                                <tr>
-                                                    <th scope="col">#</th>
-                                                    <th scope="col" class="text-start">Команда</th>
-                                                    <th scope="col">Группа</th>
-                                                    <% criteria.forEach(criterion => { %>
-                                                        <th scope="col"><%= criterion.name %></th>
-                                                    <% }); %>
-                                                    <th scope="col" class="bg-primary text-white">Общий средний балл</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <% teamReportData.forEach((teamData, index) => { %>
-                                                    <tr>
-                                                        <th scope="row"><%= index + 1 %></th>
-                                                        <td class="text-start"><strong><%= teamData.teamName %></strong></td>
-                                                        <td><span class="badge bg-info"><%= teamData.groupName %></span></td>
-                                                        <% criteria.forEach(criterion => { %>
-                                                            <td>
-                                                                <%= teamData.averageScores[criterion._id.toString()].toFixed(2) %>
-                                                            </td>
+                        <% if (reportsByGroup && Object.keys(reportsByGroup).length > 0) { %>
+                            <% Object.keys(reportsByGroup).forEach(groupName => { %>
+                                <div class="card shadow mb-4">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">Результаты по группе: <%= groupName %></h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <% const teamReportData = reportsByGroup[groupName]; %>
+                                        <% if (teamReportData && teamReportData.length > 0) { %>
+                                            <div class="table-responsive">
+                                                <table class="table table-hover table-bordered text-center">
+                                                    <thead class="table-light">
+                                                        <tr>
+                                                            <th scope="col">#</th>
+                                                            <th scope="col" class="text-start">Команда</th>
+                                                            <th scope="col" class="bg-primary text-white">Общий средний балл</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <% teamReportData.forEach((teamData, index) => { %>
+                                                            <tr>
+                                                                <th scope="row"><%= index + 1 %></th>
+                                                                <td class="text-start"><strong><%= teamData.teamName %></strong></td>
+                                                                <td class="bg-light">
+                                                                    <strong><%= teamData.overallAverage.toFixed(2) %></strong>
+                                                                </td>
+                                                            </tr>
                                                         <% }); %>
-                                                        <td class="bg-light">
-                                                            <strong><%= teamData.overallAverage.toFixed(2) %></strong>
-                                                        </td>
-                                                    </tr>
-                                                <% }); %>
-                                            </tbody>
-                                             <tfoot>
-                                                <tr class="table-light fw-bold">
-                                                    <td colspan="3" class="text-end">Средний балл по критерию:</td>
-                                                    <% criteriaStats.forEach(stat => { %>
-                                                        <td><%= stat.average %></td>
-                                                    <% }); %>
-                                                    <td></td>
-                                                </tr>
-                                            </tfoot>
-                                        </table>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        <% } else { %>
+                                            <div class="text-center py-4">
+                                                <i class="fas fa-chart-bar fa-3x text-muted mb-3"></i>
+                                                <h5 class="text-muted">Нет данных для отображения в этой группе</h5>
+                                            </div>
+                                        <% } %>
                                     </div>
-                                <% } else { %>
-                                    <div class="text-center py-4">
-                                        <i class="fas fa-chart-bar fa-3x text-muted mb-3"></i>
-                                        <h5 class="text-muted">Нет данных для отображения</h5>
-                                        <p class="text-muted">По этому периоду пока нет оценок.</p>
-                                    </div>
-                                <% } %>
+                                </div>
+                            <% }); %>
+                        <% } else { %>
+                            <div class="text-center py-4">
+                                <i class="fas fa-chart-bar fa-3x text-muted mb-3"></i>
+                                <h5 class="text-muted">Нет данных для отображения</h5>
+                                <p class="text-muted">По этому периоду пока нет оценок.</p>
                             </div>
-                        </div>
+                        <% } %>
                     </div>
                 </div>
             </main>
